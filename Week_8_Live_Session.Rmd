@@ -1,0 +1,69 @@
+---
+title: "Week 8 Live Session--Module 8.9"
+author: "Tony Garza"
+date: "June 29, 2016"
+output: 
+  html_document:
+    keep_md: TRUE
+---
+# Prep Data
+```{r}
+fileLocation <- "http://stat.columbia.edu/~rachel/datasets/nyt1.csv"
+data1 <- read.csv(url(fileLocation))
+head(data1)
+data1$Age_Group <- cut(data1$Age, c(-Inf, 18, 24, 34, 44, 54, 64, Inf))
+levels(data1$Age_Group) <- c("<18", "18-24", "25-34", "35-44", "45-54", "55-64", "65+")
+head(data1)
+ImpSub <- subset(data1, Impressions>0)
+ImpSub$CTR <- ImpSub$Clicks/ImpSub$Impressions
+head(data1)
+head(ImpSub)
+```
+
+# Analysis of Click Stream Data (PART1)
+```{r}
+library(ggplot2)
+ggplot(subset(ImpSub, Impressions>0), aes(x=Impressions, fill=Age_Group)) + geom_histogram(binwidth=1)+labs(title="Impressions by Age Group") # plot of Impressions by Age Group
+ggplot(subset(ImpSub, CTR>0), aes(x=CTR, fill=Age_Group))+labs(title="Click-through Rate by Age Group") +geom_histogram(binwidth=.025) # Plot of CTR by Age Group
+```
+```{r}
+ImpSub$CTR_Group <- cut(ImpSub$CTR, c(-Inf, 0.2, 0.4, 0.6, 0.8, Inf))
+levels(ImpSub$CTR_Group) <- c("< 0.2", "0.2-0.4", "0.4-0.6", "0.6-0.8", "> 0.8")
+head(ImpSub)
+```
+```{r}
+str(ImpSub)
+sum(is.na(ImpSub)) #double-checking that there are no NAs
+sum(ImpSub$Gender) #Calculate Sums
+sum(ImpSub$Age) #Calculate Sums
+sum(ImpSub$Impressions) #Calculate Sums
+sum(ImpSub$Signed_In) #Calculate Sums
+
+summary(ImpSub) #This gives us means of the requested items
+sapply(ImpSub,mean) #This is another way to get means, returns "NA" on values that are not numeric
+library(plyr)
+ddply(ImpSub, .(Age_Group), summarize, Impressions=mean(Impressions), CTR=mean(CTR), PercentMales=mean(Gender), Signed_In=mean(Signed_In))
+```
+# Analysis of Click Stream Data (PART2)
+```{r}
+### Table of CTR_Group v Age_Group
+x1 <- ddply(ImpSub, .(Age_Group), summarize, Impressions=sum(Impressions), CTR=sum(CTR), TotalMales=sum(Gender), Signed_In=sum(Signed_In)) #get the sums by Age_Group
+y1 <- ddply(ImpSub, .(CTR_Group), summarize, Impressions=sum(Impressions), CTR=sum(CTR), TotalMales=sum(Gender), Signed_In=sum(Signed_In)) #get the sums by CTR_Group
+colnames(x1)[1]<-"AGEorCTR_GROUPS" #rename first column for join prep
+colnames(y1)[1]<-"AGEorCTR_GROUPS" #rename first column for join prep
+
+library(dplyr) #load dplyr for join function
+JoinTable<-full_join(x1, y1) #join x1 and y1
+str(JoinTable)
+JoinTable #Table of CTR_Group v Age_Group
+
+### Plot of Impressions by CTR Group
+ggplot(subset(ImpSub, Impressions>0), aes(x=Impressions, fill=CTR_Group)) + geom_histogram(binwidth=1)+labs(title="Impressions by CTR Group")
+### Plot of CTR by CTR Group
+ggplot(subset(ImpSub, CTR>0), aes(x=CTR, fill=CTR_Group))+labs(title="Click-through Rate by CTR Group") +geom_histogram(binwidth=.025)
+### Plot of CTR vs Impressions
+ggplot(ImpSub, aes(CTR,Impressions)) +geom_line()
+```
+<br\>
+
+Mathmatically, it stands to reason that we should see CTR decrease as Impressions increase.
